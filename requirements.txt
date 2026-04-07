@@ -1,0 +1,7 @@
+streamlit
+faiss-cpu
+pdfplumber
+python-docx
+tavily
+sentence-transformers
+openai
