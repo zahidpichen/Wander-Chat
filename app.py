@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import faiss
 import numpy as np
@@ -6,6 +7,8 @@ import io
 from openai import OpenAI
 from tavily import TavilyClient
 import json
+from sentence_transformers import SentenceTransformer
+
 
 with st.sidebar:
     page = st.radio(
@@ -217,7 +220,7 @@ def stream_final_response(client, final_response):
     stream = client.chat.completions.create(
         model=STREAMING_MODEL,
         messages=[
-            {"role": "system", "content": "You are a Kerala tourism assistant. Present the following information clearly and naturally."},
+            {"role": "system", "content": "You are a Karnataka tourism assistant. Present the following information clearly and naturally."},
             {"role": "user", "content": final_response}
         ],
         stream=True
@@ -233,7 +236,6 @@ def retrieve(query, top_k=5):
     chunk_store = st.session_state.chunk_store
     if index is None or not chunk_store:
         return "No knowledge base loaded."
-    from sentence_transformers import SentenceTransformer
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     query_embedding = model.encode([query])
     query_embedding = np.array(query_embedding).astype("float32")
@@ -576,8 +578,12 @@ elif page == "Knowledge Base":
         col1, col2 = st.columns(2)
 
         with col1:
-            faiss.write_index(st.session_state.faiss_index, "/tmp/export.index")
-            with open("/tmp/export.index", "rb") as f:
+            index_folder_path = "faiss_index"
+            if not os.path.exists(index_folder_path):
+                os.makedirs(index_folder_path)
+            index_file_path = os.path.join(index_folder_path, "vector.index")
+            faiss.write_index(st.session_state.faiss_index, index_file_path)
+            with open(index_file_path, "rb") as f:
                 st.download_button(
                     "Download FAISS Index",
                     data=f.read(),
