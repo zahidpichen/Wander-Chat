@@ -8,6 +8,7 @@ from openai import OpenAI
 from tavily import TavilyClient
 import json
 from sentence_transformers import SentenceTransformer
+from datetime import datetime
 
 
 with st.sidebar:
@@ -257,11 +258,50 @@ def add_to_memory(user_input, agent_response):
         st.session_state.conversation_history.pop(0)
 
 
+# ── ANSI color codes ──────────────────────────────────────────────────────────
+
+CYAN    = "\033[36m"
+YELLOW  = "\033[33m"
+GREEN   = "\033[32m"
+MAGENTA = "\033[35m"
+GRAY    = "\033[90m"
+RESET   = "\033[0m"
+BOLD    = "\033[1m"
+
+STAGE_COLORS = {
+    "Retrieving":  CYAN,
+    "MoA":         YELLOW,
+    "Web":         MAGENTA,
+    "Evaluator":   GREEN,
+    "Formatter":   CYAN,
+}
+
+def terminal_log(msg):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    # Pick color based on first word of message
+    color = GRAY
+    for keyword, c in STAGE_COLORS.items():
+        if msg.startswith(keyword):
+            color = c
+            break
+    print(f"{GRAY}{timestamp}{RESET}  {color}{BOLD}{msg}{RESET}")
+
+
 def run_pipeline(user_query, status):
+
+    def log(msg):
+        status.write(f"_{msg}_")
+        terminal_log(msg)
+
     client, tavily_client = get_clients()
 
+    # ── Divider in terminal ───────────────────────────────────────────────────
+    print(f"\n{GRAY}{'─' * 60}{RESET}")
+    print(f"{BOLD}  Query:{RESET} {user_query}")
+    print(f"{GRAY}{'─' * 60}{RESET}\n")
+
     # ── Retrieve ──────────────────────────────────────────────────────────────
-    status.write("_Retrieving context from knowledge base..._")
+    log("Retrieving context from knowledge base...")
     retrieved_context = retrieve(user_query)
 
     # ── MoA Layer 1 ───────────────────────────────────────────────────────────
@@ -272,35 +312,35 @@ def run_pipeline(user_query, status):
         user_query=user_query
     )
 
-    status.write("_MoA — Layer 1: Agent 1 generating response..._")
+    log("MoA — Layer 1: Agent 1 generating response...")
     l1_r1 = llm_request(client, MOA_MODEL_1, "You are a helpful Kerala tourism assistant.", l1_prompt)
 
-    status.write("_MoA — Layer 1: Agent 2 generating response..._")
+    log("MoA — Layer 1: Agent 2 generating response...")
     l1_r2 = llm_request(client, MOA_MODEL_2, "You are a helpful Kerala tourism assistant.", l1_prompt)
 
-    status.write("_MoA — Layer 1: Agent 3 generating response..._")
+    log("MoA — Layer 1: Agent 3 generating response...")
     l1_r3 = llm_request(client, MOA_MODEL_3, "You are a helpful Kerala tourism assistant.", l1_prompt)
 
     # ── MoA Layer 2 ───────────────────────────────────────────────────────────
     l2_prompt = MOA_LAYER2_PROMPT.format(user_query=user_query, response_1=l1_r1, response_2=l1_r2, response_3=l1_r3)
 
-    status.write("_MoA — Layer 2: Agent 1 refining..._")
+    log("MoA — Layer 2: Agent 1 refining...")
     l2_r1 = llm_request(client, MOA_MODEL_1, "You are a Kerala tourism expert.", l2_prompt)
 
-    status.write("_MoA — Layer 2: Agent 2 refining..._")
+    log("MoA — Layer 2: Agent 2 refining...")
     l2_r2 = llm_request(client, MOA_MODEL_2, "You are a Kerala tourism expert.", l2_prompt)
 
-    status.write("_MoA — Layer 2: Agent 3 refining..._")
+    log("MoA — Layer 2: Agent 3 refining...")
     l2_r3 = llm_request(client, MOA_MODEL_3, "You are a Kerala tourism expert.", l2_prompt)
 
     # ── MoA Layer 3 ───────────────────────────────────────────────────────────
     l3_prompt = MOA_LAYER3_PROMPT.format(user_query=user_query, response_1=l2_r1, response_2=l2_r2, response_3=l2_r3)
 
-    status.write("_MoA — Layer 3: Synthesizing final response..._")
+    log("MoA — Layer 3: Synthesizing final response...")
     moa_response = llm_request(client, MOA_LAYER3_MODEL, "You are a Kerala tourism expert.", l3_prompt)
 
     # ── Web Search ────────────────────────────────────────────────────────────
-    status.write("_Web researcher: Identifying missing information..._")
+    log("Web researcher: Identifying missing information...")
     raw = llm_request(
         client, WEB_QUERY_MODEL,
         "You are a web search query builder for a Kerala tourism assistant.",
@@ -312,12 +352,12 @@ def run_pipeline(user_query, status):
 
     web_data = []
     for i, q in enumerate(queries):
-        status.write(f"_Web researcher: Searching [{i+1}/{len(queries)}] — {q}_")
+        log(f"Web researcher: Searching [{i+1}/{len(queries)}] — {q}")
         results = tavily_client.search(q, max_results=3)
         web_data.extend(results.get("results", []))
 
     # ── Evaluator ─────────────────────────────────────────────────────────────
-    status.write("_Evaluator: Verifying and merging web results..._")
+    log("Evaluator: Verifying and merging web results...")
     raw = llm_request(
         client, REASONING_MODEL,
         "You are a verification expert for a Kerala tourism assistant.",
@@ -333,7 +373,7 @@ def run_pipeline(user_query, status):
     if parsed.get("status") == "pass":
         evaluated_response = parsed["final_response"]
     else:
-        status.write("_Evaluator: Retrying with additional search..._")
+        log("Evaluator: Retrying with additional search...")
         web_data = []
         for q in queries:
             results = tavily_client.search(q, max_results=3)
@@ -352,14 +392,14 @@ def run_pipeline(user_query, status):
         evaluated_response = parsed["final_response"]
 
     # ── Formatter ─────────────────────────────────────────────────────────────
-    status.write("_Formatter: Structuring final response..._")
+    log("Formatter: Structuring final response...")
     formatted = llm_request(
         client, FORMATTER_MODEL,
         "You are a data formatter for a Kerala tourism assistant.",
         FORMATTER_PROMPT.format(final_response=evaluated_response)
     )
 
-    status.write("_Formatter: Evaluating output quality..._")
+    log("Formatter: Evaluating output quality...")
     eval_raw = llm_request(
         client, FORMAT_EVALUATOR_MODEL,
         "You are a format quality checker for a Kerala tourism assistant.",
@@ -370,13 +410,15 @@ def run_pipeline(user_query, status):
     if eval_parsed.get("status") == "pass":
         final_response = formatted
     else:
-        status.write("_Formatter: Fixing formatting issues..._")
+        log("Formatter: Fixing formatting issues...")
         final_response = llm_request(
             client, FORMATTER_MODEL,
             "You are a data formatter for a Kerala tourism assistant.",
             FORMATTER_PROMPT.format(final_response=evaluated_response) +
             f"\n\nPrevious output had issues: {eval_parsed.get('issues')}\nFix: {eval_parsed.get('fix')}\n\nPrevious wrong output:\n{formatted}"
         )
+
+    print(f"\n{GREEN}{BOLD}  ✓ Pipeline complete.{RESET}\n{GRAY}{'─' * 60}{RESET}\n")
 
     return final_response, client
 
@@ -393,6 +435,13 @@ if page == "Chat":
         }
         </style>
     """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([8, 1])
+    with col2:
+        if st.button("🗑️", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.conversation_history = []
+            st.rerun()
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
