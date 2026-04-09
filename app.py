@@ -173,32 +173,15 @@ Do not invent fields. Do not fill fields with "N/A" or "Not mentioned". If a fac
 Do not force narrative answers into fields. Do not force factual answers into paragraphs.
 """
 
-FORMAT_EVALUATOR_PROMPT = """You are a format quality checker for a Kerala tourism assistant.
+FORMAT_EVALUATOR_PROMPT = """You are checking if a response is clear and friendly for a normal person.
 
-Original Data:
-{original_data}
-
-Formatter Output:
+Response to check:
 {formatter_output}
 
-Check for:
-1. Any factual data present in the original that is missing from the formatted output.
-2. Any data that was incorrectly formatted or misrepresented.
-3. Any fields that are empty but shouldn't be, or fields with wrong values.
+If it reads well for a regular user, output the single word: pass
+If not, output the single word: fail
 
-If everything is correct, output:
-{{
-  "status": "pass"
-}}
-
-If there are issues, output:
-{{
-  "status": "fail",
-  "issues": "<describe what is wrong>",
-  "fix": "<describe exactly what needs to be fixed>"
-}}
-
-Only output the JSON. Nothing else."""
+Only output one word. Nothing else."""
 
 
 def get_clients():
@@ -312,6 +295,7 @@ def run_pipeline(user_query, status):
     log("MoA — Layer 1: Agent 3 generating response...")
     l1_r3 = llm_request(client, MOA_MODEL_3, "You are a helpful Kerala tourism assistant.", l1_prompt)
 
+
     # ── MoA Layer 2 ───────────────────────────────────────────────────────────
     l2_prompt = MOA_LAYER2_PROMPT.format(user_query=user_query, response_1=l1_r1, response_2=l1_r2, response_3=l1_r3)
 
@@ -392,22 +376,21 @@ def run_pipeline(user_query, status):
 
     log("Formatter: Evaluating output quality...")
     eval_raw = llm_request(
-        client, FORMAT_EVALUATOR_MODEL,
-        "You are a format quality checker for a Kerala tourism assistant.",
-        FORMAT_EVALUATOR_PROMPT.format(original_data=evaluated_response, formatter_output=formatted)
+    client, FORMAT_EVALUATOR_MODEL,
+    "You are a format quality checker for a Kerala tourism assistant.",
+    FORMAT_EVALUATOR_PROMPT.format(formatter_output=formatted)
     )
-    eval_parsed = json.loads(eval_raw)
 
-    if eval_parsed.get("status") == "pass":
+    if eval_raw == "pass":
         final_response = formatted
     else:
         log("Formatter: Fixing formatting issues...")
         final_response = llm_request(
             client, FORMATTER_MODEL,
             "You are a data formatter for a Kerala tourism assistant.",
-            FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response) +
-            f"\n\nPrevious output had issues: {eval_parsed.get('issues')}\nFix: {eval_parsed.get('fix')}\n\nPrevious wrong output:\n{formatted}"
+            FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response)
         )
+
 
     print(f"\n{GREEN}{BOLD}  ✓ Pipeline complete.{RESET}\n{GRAY}{'─' * 60}{RESET}\n")
 
