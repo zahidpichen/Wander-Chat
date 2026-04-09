@@ -169,12 +169,6 @@ First, understand what the user is asking:
 - If the query is asking for an explanation (history, culture, what something is, recommendations), write a clear paragraph or two. Add bullet points only if they genuinely help, not by default.
 - If the response contains both narrative content and embedded facts, lead with the explanation and surface the facts compactly at the end.
 
-Compact field format (use only for facts that are actually present):
-Timings: 9am – 9pm
-Entry Fee: ₹50 (adults), ₹20 (children)
-Distance: 45 km from Kochi
-Best Time to Visit: October – March
-
 Do not invent fields. Do not fill fields with "N/A" or "Not mentioned". If a fact is not in the response, skip it entirely.
 Do not force narrative answers into fields. Do not force factual answers into paragraphs.
 """
@@ -225,22 +219,9 @@ def llm_request(client, model, system_prompt, user_prompt):
     )
     return response.choices[0].message.content
 
-
-def stream_final_response(client, final_response):
-    """Generator that streams the final response token by token."""
-    stream = client.chat.completions.create(
-        model=STREAMING_MODEL,
-        messages=[
-            {"role": "system", "content": "You are a Karnataka tourism assistant. Present the following information clearly and naturally."},
-            {"role": "user", "content": final_response}
-        ],
-        stream=True
-    )
-    for chunk in stream:
-        token = chunk.choices[0].delta.content
-        if token:
-            yield token
-
+def stream_final_response(final_response):
+    for word in final_response.split(" "):
+        yield word + " "
 
 def retrieve(query, top_k=5):
     index = st.session_state.faiss_index
@@ -406,7 +387,7 @@ def run_pipeline(user_query, status):
     formatted = llm_request(
         client, FORMATTER_MODEL,
         "You are a data formatter for a Kerala tourism assistant.",
-        FORMATTER_PROMPT.format(final_response=evaluated_response)
+        FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response)
     )
 
     log("Formatter: Evaluating output quality...")
@@ -424,7 +405,7 @@ def run_pipeline(user_query, status):
         final_response = llm_request(
             client, FORMATTER_MODEL,
             "You are a data formatter for a Kerala tourism assistant.",
-            FORMATTER_PROMPT.format(final_response=evaluated_response) +
+            FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response) +
             f"\n\nPrevious output had issues: {eval_parsed.get('issues')}\nFix: {eval_parsed.get('fix')}\n\nPrevious wrong output:\n{formatted}"
         )
 
@@ -472,7 +453,7 @@ if page == "Chat":
 
             # Clear status and stream response
             status.empty()
-            streamed = st.write_stream(stream_final_response(client, final_response))
+            streamed = st.write_stream(stream_final_response(final_response))
 
         # Save to history
         st.session_state.messages.append({"role": "assistant", "content": streamed})
