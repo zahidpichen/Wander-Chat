@@ -657,32 +657,34 @@ elif page == "Knowledge Base":
                 st.markdown(f"- {name}")
 
         st.divider()
-        st.subheader("Export Index")
+        if st.session_state.index_source == "build":
+            st.divider()
+            st.subheader("Export Index")
 
-        col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-        with col1:
-            index_folder_path = "faiss_index"
-            if not os.path.exists(index_folder_path):
-                os.makedirs(index_folder_path)
-            index_file_path = os.path.join(index_folder_path, "vector.index")
-            faiss.write_index(st.session_state.faiss_index, index_file_path)
-            with open(index_file_path, "rb") as f:
+            with col1:
+                index_folder_path = "faiss_index"
+                if not os.path.exists(index_folder_path):
+                    os.makedirs(index_folder_path)
+                index_file_path = os.path.join(index_folder_path, "vector.index")
+                faiss.write_index(st.session_state.faiss_index, index_file_path)
+                with open(index_file_path, "rb") as f:
+                    st.download_button(
+                        "Download FAISS Index",
+                        data=f.read(),
+                        file_name="vector.index",
+                        mime="application/octet-stream"
+                    )
+
+            with col2:
+                pkl_bytes = pickle.dumps(st.session_state.chunk_store)
                 st.download_button(
-                    "Download FAISS Index",
-                    data=f.read(),
-                    file_name="vector.index",
+                    "Download Chunk Store",
+                    data=pkl_bytes,
+                    file_name="chunk_store.pkl",
                     mime="application/octet-stream"
                 )
-
-        with col2:
-            pkl_bytes = pickle.dumps(st.session_state.chunk_store)
-            st.download_button(
-                "Download Chunk Store",
-                data=pkl_bytes,
-                file_name="chunk_store.pkl",
-                mime="application/octet-stream"
-            )
 
 
 
