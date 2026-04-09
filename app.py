@@ -406,7 +406,7 @@ def run_pipeline(user_query, status):
     formatted = llm_request(
         client, FORMATTER_MODEL,
         "You are a data formatter for a Kerala tourism assistant.",
-        FORMATTER_PROMPT.format(final_response=evaluated_response)
+        FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response)
     )
 
     log("Formatter: Evaluating output quality...")
