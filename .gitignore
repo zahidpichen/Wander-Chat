@@ -1,2 +1,5 @@
 env/
 wanderchat_v0_1.py
+Kerala_Tourist_Vector_DB.index
+Knowledge_Base_Chunk_Store.pkl
+faiss_index/vector.index

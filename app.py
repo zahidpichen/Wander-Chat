@@ -14,7 +14,7 @@ from datetime import datetime
 with st.sidebar:
     page = st.radio(
         label="Navigation",
-        options=["Chat", "Knowledge Base", "Configuration"]
+        options=["Knowledge Base", "Chat", "Configuration"]
     )
 
 # ── Session State Defaults ────────────────────────────────────────────────────
@@ -49,50 +49,53 @@ STREAMING_MODEL = "arcee-ai/trinity-mini:free"
 
 MOA_LAYER1_PROMPT_WITH_MEMORY = """You are a knowledgeable Kerala tourism assistant.
 
-Conversation History:
-{conversation_history}
+        Conversation History:
+        {conversation_history}
 
-Retrieved Context:
-{retrieved_context}
+        Retrieved Context:
+        {retrieved_context}
 
-User Query:
-{user_query}
+        User Query:
+        {user_query}
 
-Give a detailed and informative response covering what you know about this topic."""
+        Give a detailed and informative response covering what you know about this topic.
+"""
 
 MOA_LAYER2_PROMPT = """You are a Kerala tourism expert refining and improving responses.
 
-You are given 3 responses from other assistants for the same user query. Collect the best points from all 3, remove redundancy, fix inaccuracies, and give an improved response.
+        You are given 3 responses from other assistants for the same user query. Collect the best points from all 3, remove redundancy, fix inaccuracies, and give an improved response.
 
-User Query:
-{user_query}
+        User Query:
+        {user_query}
 
-Response 1:
-{response_1}
+        Response 1:
+        {response_1}
 
-Response 2:
-{response_2}
+        Response 2:
+        {response_2}
 
-Response 3:
-{response_3}
+        Response 3:
+        {response_3}
 
-Give a single improved response that combines the best of all three."""
+        Give a single improved response that combines the best of all three.
+        """
 
 MOA_LAYER3_PROMPT = """You are a Kerala tourism expert. Your job is to synthesize 3 refined responses into one single, coherent, final response.
 
-User Query:
-{user_query}
+    User Query:
+    {user_query}
 
-Refined Response 1:
-{response_1}
+    Refined Response 1:
+    {response_1}
 
-Refined Response 2:
-{response_2}
+    Refined Response 2:
+    {response_2}
 
-Refined Response 3:
-{response_3}
+    Refined Response 3:
+    {response_3}
 
-Combine these into one clear, complete, and well-structured final response. Do not add new information. Only synthesize what is already there."""
+    Combine these into one clear, complete, and well-structured final response. Do not add new information. Only synthesize what is already there.
+"""
 
 WEB_SURFER_PROMPT = """You are analyzing a tourism-related response to identify what real-time or recent information is missing or could be outdated.
 
@@ -147,27 +150,32 @@ Tasks:
 
 Only output the JSON. Nothing else."""
 
-FORMATTER_PROMPT = """You are a data formatter for a Kerala tourism assistant.
+FORMATTER_PROMPT = """You are a response formatter for a Kerala tourism assistant.
 
-You will receive a final response about a Kerala tourism topic. Your job is to extract and present only the structured factual data from it.
+Your job is to present the final response in the most useful way for the user, based on what they are actually asking.
+
+User Query:
+{user_query}
 
 Final Response:
 {final_response}
 
-Extract any structured facts that are present (only include fields that actually exist in the response):
-- Distances
-- Opening time
-- Closing time
-- Entry fees
-- Best time to visit
-- Restaurants / food recommendations
-- Weather / current conditions
-- Traffic conditions
-- Events / festivals
+Instructions:
 
-Present them in a clean structured format. For any narrative or descriptive information, keep it as a short paragraph under "About".
+First, understand what the user is asking:
+- If the query is looking for a quick fact (timings, fees, distance, weather, contact), present the answer in compact labeled fields. No prose, no filler sentences.
+- If the query is asking for an explanation (history, culture, what something is, recommendations), write a clear paragraph or two. Add bullet points only if they genuinely help, not by default.
+- If the response contains both narrative content and embedded facts, lead with the explanation and surface the facts compactly at the end.
 
-Do not add any information that is not in the response."""
+Compact field format (use only for facts that are actually present):
+Timings: 9am – 9pm
+Entry Fee: ₹50 (adults), ₹20 (children)
+Distance: 45 km from Kochi
+Best Time to Visit: October – March
+
+Do not invent fields. Do not fill fields with "N/A" or "Not mentioned". If a fact is not in the response, skip it entirely.
+Do not force narrative answers into fields. Do not force factual answers into paragraphs.
+"""
 
 FORMAT_EVALUATOR_PROMPT = """You are a format quality checker for a Kerala tourism assistant.
 
