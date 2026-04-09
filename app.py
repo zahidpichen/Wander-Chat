@@ -1,15 +1,17 @@
 import os
-import streamlit as st
-import faiss
-import numpy as np
-import pickle
 import io
-from openai import OpenAI
-from tavily import TavilyClient
 import json
-from sentence_transformers import SentenceTransformer
+import faiss
+import pickle
+import pdfplumber
+import numpy as np
+import tempfile, os
+import streamlit as st
+from docx import Document
+from openai import OpenAI
 from datetime import datetime
-
+from tavily import TavilyClient
+from sentence_transformers import SentenceTransformer
 
 with st.sidebar:
     page = st.radio(
@@ -482,6 +484,9 @@ if page == "Chat":
 elif page == "Knowledge Base":
 
     st.title("Knowledge Base")
+    
+    if "index_source" not in st.session_state:
+        st.session_state.index_source = None
 
     mode = st.radio(
         "Choose an option",
@@ -499,12 +504,16 @@ elif page == "Knowledge Base":
 
         if uploaded_files and st.button("Build Index", type="primary"):
 
-            import pdfplumber
-            from docx import Document
-            from sentence_transformers import SentenceTransformer
-
             progress_bar = st.progress(0)
             status_text = st.empty()
+
+            # ── Model Loading ─────────────────────────────────────────────
+            status_text.text("Loading embedding model...")
+            progress_bar.progress(5)
+            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+            status_text.text("Preparing text extraction pipeline...")
+            progress_bar.progress(10)
 
             all_chunks = []
             total_files = len(uploaded_files)
@@ -532,9 +541,10 @@ elif page == "Knowledge Base":
                     start += chunk_size - overlap
                 return chunks
 
+            # ── File Processing Loop ──────────────────────────────────────
             for i, file in enumerate(uploaded_files):
-                status_text.text(f"Processing file [{i+1}/{total_files}]: {file.name}")
-                progress_bar.progress(int((i / total_files) * 40))
+                status_text.text(f"Extracting text [{i+1}/{total_files}]: {file.name}")
+                progress_bar.progress(10 + int((i / total_files) * 30))
 
                 if file.name.endswith(".pdf"):
                     text = extract_pdf(file)
@@ -544,19 +554,25 @@ elif page == "Knowledge Base":
                 chunks = chunk_text(text)
                 all_chunks.extend(chunks)
 
-            status_text.text("Embedding chunks...")
+                status_text.text(f"Chunked {file.name} → {len(chunks)} chunks (total so far: {len(all_chunks)})")
+
+            # ── Embedding ─────────────────────────────────────────────────
+            status_text.text(f"Embedding {len(all_chunks)} chunks... this may take a moment")
             progress_bar.progress(50)
 
-            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
             embeddings = model.encode(all_chunks, show_progress_bar=False)
             embeddings = np.array(embeddings).astype("float32")
 
-            status_text.text("Building vector database...")
-            progress_bar.progress(80)
+            # ── Index Building ────────────────────────────────────────────
+            status_text.text("Building vector index...")
+            progress_bar.progress(85)
 
             dim = embeddings.shape[1]
             index = faiss.IndexFlatL2(dim)
             index.add(embeddings)
+
+            status_text.text("Saving index to session...")
+            progress_bar.progress(95)
 
             st.session_state.faiss_index = index
             st.session_state.chunk_store = all_chunks
@@ -570,7 +586,11 @@ elif page == "Knowledge Base":
 
             progress_bar.progress(100)
             status_text.text("Done!")
-            st.success("Index built successfully!")
+            st.success(f"Index built! {total_files} files · {len(all_chunks)} total chunks")
+ 
+            st.session_state.index_source = "build"
+
+
 
     elif mode == "Upload Existing Index":
 
@@ -588,10 +608,13 @@ elif page == "Knowledge Base":
 
             status_text.text("Loading FAISS index...")
             progress_bar.progress(30)
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".index") as tmp:
+                tmp.write(index_file.read())
+                tmp_path = tmp.name
 
-            with open("/tmp/uploaded.index", "wb") as f:
-                f.write(index_file.read())
-            index = faiss.read_index("/tmp/uploaded.index")
+            index = faiss.read_index(tmp_path)
+            os.remove(tmp_path)
 
             status_text.text("Loading chunk store...")
             progress_bar.progress(70)
@@ -611,9 +634,13 @@ elif page == "Knowledge Base":
             progress_bar.progress(100)
             status_text.text("Done!")
             st.success("Index loaded successfully!")
+            st.session_state.index_source = "load"
 
-    if st.session_state.faiss_index is not None:
 
+    if st.session_state.faiss_index is not None and (
+        (mode == "Upload Documents" and st.session_state.index_source == "build") or
+        (mode == "Upload Existing Index" and st.session_state.index_source == "load")
+    ):
         st.divider()
         st.subheader("Vector Database Info")
 
@@ -656,6 +683,7 @@ elif page == "Knowledge Base":
                 file_name="chunk_store.pkl",
                 mime="application/octet-stream"
             )
+
 
 
 # ── Configuration Page ────────────────────────────────────────────────────────
