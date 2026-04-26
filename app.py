@@ -13,11 +13,430 @@ from datetime import datetime
 from tavily import TavilyClient
 from sentence_transformers import SentenceTransformer
 
+# ── Page Config ───────────────────────────────────────────────────────────────
+
+st.set_page_config(
+    page_title="Kerala Tourism AI",
+    page_icon="🌴",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ── Global CSS ────────────────────────────────────────────────────────────────
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+/* ── Base ── */
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+}
+
+.stApp {
+    background-color: #0d1117;
+    color: #e6edf3;
+}
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0a1628 0%, #0d1f3c 60%, #0a2e1a 100%);
+    border-right: 1px solid #1e3a5f;
+}
+
+[data-testid="stSidebar"] .stRadio label {
+    color: #a0b4c8 !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+
+[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
+    color: #a0b4c8;
+}
+
+/* Sidebar nav items */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 3px 0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+    background: rgba(46, 160, 67, 0.12);
+    border-color: rgba(46, 160, 67, 0.3);
+}
+
+/* ── Main Content ── */
+.block-container {
+    padding: 2rem 3rem 3rem 3rem;
+    max-width: 1100px;
+}
+
+/* ── Hero Banner ── */
+.hero-banner {
+    background: linear-gradient(135deg, #0a2e1a 0%, #0d3b22 40%, #0a1628 100%);
+    border: 1px solid #1a4d2e;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-banner::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(46,160,67,0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    color: #e6edf3;
+    margin: 0 0 0.3rem 0;
+    line-height: 1.2;
+}
+
+.hero-title span {
+    color: #3fb950;
+}
+
+.hero-subtitle {
+    color: #7d8fa3;
+    font-size: 0.95rem;
+    font-weight: 300;
+    margin: 0;
+    letter-spacing: 0.02em;
+}
+
+.hero-badge {
+    display: inline-block;
+    background: rgba(46, 160, 67, 0.15);
+    border: 1px solid rgba(46, 160, 67, 0.3);
+    color: #3fb950;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+}
+
+/* ── Section Titles ── */
+.section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    color: #e6edf3;
+    margin: 0 0 0.25rem 0;
+}
+
+.section-subtitle {
+    color: #7d8fa3;
+    font-size: 0.85rem;
+    margin: 0 0 1.5rem 0;
+}
+
+/* ── Cards ── */
+.info-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* ── Metric Cards ── */
+[data-testid="metric-container"] {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    color: #3fb950;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+[data-testid="metric-container"] [data-testid="stMetricLabel"] {
+    color: #7d8fa3;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── File Uploader ── */
+[data-testid="stFileUploader"] {
+    background: #161b22;
+    border: 1px dashed #2d4a3e;
+    border-radius: 12px;
+    padding: 1rem;
+    transition: border-color 0.2s;
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: #3fb950;
+}
+
+/* ── Buttons ── */
+.stButton > button {
+    background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.4rem;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+}
+
+.stButton > button:hover {
+    background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(46, 160, 67, 0.3);
+}
+
+.stButton > button[kind="secondary"] {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+}
+
+.stButton > button[kind="secondary"]:hover {
+    background: #2d333b;
+    border-color: #3fb950;
+    box-shadow: 0 4px 12px rgba(46, 160, 67, 0.15);
+}
+
+/* ── Download Button ── */
+[data-testid="stDownloadButton"] > button {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+[data-testid="stDownloadButton"] > button:hover {
+    border-color: #3fb950;
+    color: #3fb950;
+    box-shadow: 0 4px 12px rgba(46, 160, 67, 0.15);
+}
+
+/* ── Radio Buttons ── */
+.stRadio > div {
+    gap: 0.5rem;
+}
+
+.stRadio [data-testid="stMarkdownContainer"] p {
+    color: #7d8fa3;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Progress Bar ── */
+.stProgress > div > div > div {
+    background: linear-gradient(90deg, #238636, #3fb950);
+    border-radius: 4px;
+}
+
+.stProgress > div > div {
+    background: #21262d;
+    border-radius: 4px;
+}
+
+/* ── Text Input ── */
+.stTextInput > div > div > input {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #e6edf3;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.9rem;
+    transition: border-color 0.2s;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #3fb950;
+    box-shadow: 0 0 0 3px rgba(46, 160, 67, 0.15);
+}
+
+.stTextInput label {
+    color: #7d8fa3 !important;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+
+/* ── Chat Input ── */
+[data-testid="stChatInput"] {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    transition: border-color 0.2s;
+}
+
+[data-testid="stChatInput"]:focus-within {
+    border-color: #3fb950;
+    box-shadow: 0 0 0 3px rgba(46, 160, 67, 0.1);
+}
+
+[data-testid="stChatInput"] textarea {
+    color: #e6edf3 !important;
+    font-family: 'DM Sans', sans-serif !important;
+}
+
+/* ── Chat Messages ── */
+[data-testid="stChatMessage"] {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+[data-testid="stChatMessageAvatarUser"],
+[data-testid="stChatMessageAvatarAssistant"] {
+    display: none;
+}
+
+/* ── Success / Info / Warning ── */
+.stSuccess {
+    background: rgba(46, 160, 67, 0.1);
+    border: 1px solid rgba(46, 160, 67, 0.3);
+    border-radius: 8px;
+    color: #3fb950;
+}
+
+.stAlert {
+    border-radius: 8px;
+}
+
+/* ── Divider ── */
+hr {
+    border-color: #21262d;
+    margin: 1.5rem 0;
+}
+
+/* ── Status container (pipeline log) ── */
+.pipeline-status {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-left: 3px solid #3fb950;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    color: #7d8fa3;
+    font-style: italic;
+}
+
+/* ── Indexed Files List ── */
+.file-pill {
+    display: inline-block;
+    background: rgba(46, 160, 67, 0.08);
+    border: 1px solid rgba(46, 160, 67, 0.2);
+    color: #3fb950;
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin: 3px 4px 3px 0;
+}
+
+/* ── Selectbox / Dropdown ── */
+[data-testid="stSelectbox"] > div > div {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #e6edf3;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0d1117; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3fb950; }
+
+/* ── Sidebar logo area ── */
+.sidebar-logo {
+    padding: 1.5rem 1rem 1rem 1rem;
+    border-bottom: 1px solid #1e3a5f;
+    margin-bottom: 1rem;
+}
+
+.sidebar-logo-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    color: #e6edf3;
+    margin: 0.5rem 0 0.2rem 0;
+}
+
+.sidebar-logo-sub {
+    font-size: 0.75rem;
+    color: #4a6fa5;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.sidebar-nav-label {
+    font-size: 0.7rem;
+    color: #4a6fa5;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0 0.5rem;
+    margin-bottom: 0.25rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+
 with st.sidebar:
+    st.markdown("""
+        <div class="sidebar-logo">
+            <div style="font-size: 2rem;">🌴</div>
+            <div class="sidebar-logo-title">Kerala Tourism AI</div>
+            <div class="sidebar-logo-sub">Intelligent Travel Assistant</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-nav-label">Navigation</div>', unsafe_allow_html=True)
+
     page = st.radio(
-        label="Navigation",
-        options=["Knowledge Base", "Chat", "Configuration"]
+        label="",
+        options=["Knowledge Base", "Chat", "Configuration"],
+        label_visibility="collapsed"
     )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style="padding: 0 0.5rem;">
+            <div style="font-size: 0.75rem; color: #2d4a3e; border-top: 1px solid #1e3a5f; padding-top: 1rem;">
+                Powered by MoA Pipeline · RAG · Web Search
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # ── Session State Defaults ────────────────────────────────────────────────────
 
@@ -173,15 +592,32 @@ Do not invent fields. Do not fill fields with "N/A" or "Not mentioned". If a fac
 Do not force narrative answers into fields. Do not force factual answers into paragraphs.
 """
 
-FORMAT_EVALUATOR_PROMPT = """You are checking if a response is clear and friendly for a normal person.
+FORMAT_EVALUATOR_PROMPT = """You are a format quality checker for a Kerala tourism assistant.
 
-Response to check:
+Original Data:
+{original_data}
+
+Formatter Output:
 {formatter_output}
 
-If it reads well for a regular user, output the single word: pass
-If not, output the single word: fail
+Check for:
+1. Any factual data present in the original that is missing from the formatted output.
+2. Any data that was incorrectly formatted or misrepresented.
+3. Any fields that are empty but shouldn't be, or fields with wrong values.
 
-Only output one word. Nothing else."""
+If everything is correct, output:
+{{
+  "status": "pass"
+}}
+
+If there are issues, output:
+{{
+  "status": "fail",
+  "issues": "<describe what is wrong>",
+  "fix": "<describe exactly what needs to be fixed>"
+}}
+
+Only output the JSON. Nothing else."""
 
 
 def get_clients():
@@ -252,7 +688,6 @@ STAGE_COLORS = {
 
 def terminal_log(msg):
     timestamp = datetime.now().strftime("%H:%M:%S")
-    # Pick color based on first word of message
     color = GRAY
     for keyword, c in STAGE_COLORS.items():
         if msg.startswith(keyword):
@@ -264,21 +699,22 @@ def terminal_log(msg):
 def run_pipeline(user_query, status):
 
     def log(msg):
-        status.write(f"_{msg}_")
+        status.markdown(f"""
+            <div class="pipeline-status">
+                <span style="color:#3fb950; margin-right:8px;">▶</span>{msg}
+            </div>
+        """, unsafe_allow_html=True)
         terminal_log(msg)
 
     client, tavily_client = get_clients()
 
-    # ── Divider in terminal ───────────────────────────────────────────────────
     print(f"\n{GRAY}{'─' * 60}{RESET}")
     print(f"{BOLD}  Query:{RESET} {user_query}")
     print(f"{GRAY}{'─' * 60}{RESET}\n")
 
-    # ── Retrieve ──────────────────────────────────────────────────────────────
     log("Retrieving context from knowledge base...")
     retrieved_context = retrieve(user_query)
 
-    # ── MoA Layer 1 ───────────────────────────────────────────────────────────
     history = format_history()
     l1_prompt = MOA_LAYER1_PROMPT_WITH_MEMORY.format(
         conversation_history=history,
@@ -295,8 +731,6 @@ def run_pipeline(user_query, status):
     log("MoA — Layer 1: Agent 3 generating response...")
     l1_r3 = llm_request(client, MOA_MODEL_3, "You are a helpful Kerala tourism assistant.", l1_prompt)
 
-
-    # ── MoA Layer 2 ───────────────────────────────────────────────────────────
     l2_prompt = MOA_LAYER2_PROMPT.format(user_query=user_query, response_1=l1_r1, response_2=l1_r2, response_3=l1_r3)
 
     log("MoA — Layer 2: Agent 1 refining...")
@@ -308,13 +742,11 @@ def run_pipeline(user_query, status):
     log("MoA — Layer 2: Agent 3 refining...")
     l2_r3 = llm_request(client, MOA_MODEL_3, "You are a Kerala tourism expert.", l2_prompt)
 
-    # ── MoA Layer 3 ───────────────────────────────────────────────────────────
     l3_prompt = MOA_LAYER3_PROMPT.format(user_query=user_query, response_1=l2_r1, response_2=l2_r2, response_3=l2_r3)
 
     log("MoA — Layer 3: Synthesizing final response...")
     moa_response = llm_request(client, MOA_LAYER3_MODEL, "You are a Kerala tourism expert.", l3_prompt)
 
-    # ── Web Search ────────────────────────────────────────────────────────────
     log("Web researcher: Identifying missing information...")
     raw = llm_request(
         client, WEB_QUERY_MODEL,
@@ -331,7 +763,6 @@ def run_pipeline(user_query, status):
         results = tavily_client.search(q, max_results=3)
         web_data.extend(results.get("results", []))
 
-    # ── Evaluator ─────────────────────────────────────────────────────────────
     log("Evaluator: Verifying and merging web results...")
     raw = llm_request(
         client, REASONING_MODEL,
@@ -366,7 +797,6 @@ def run_pipeline(user_query, status):
         parsed = json.loads(raw)
         evaluated_response = parsed["final_response"]
 
-    # ── Formatter ─────────────────────────────────────────────────────────────
     log("Formatter: Structuring final response...")
     formatted = llm_request(
         client, FORMATTER_MODEL,
@@ -376,21 +806,22 @@ def run_pipeline(user_query, status):
 
     log("Formatter: Evaluating output quality...")
     eval_raw = llm_request(
-    client, FORMAT_EVALUATOR_MODEL,
-    "You are a format quality checker for a Kerala tourism assistant.",
-    FORMAT_EVALUATOR_PROMPT.format(formatter_output=formatted)
+        client, FORMAT_EVALUATOR_MODEL,
+        "You are a format quality checker for a Kerala tourism assistant.",
+        FORMAT_EVALUATOR_PROMPT.format(original_data=evaluated_response, formatter_output=formatted)
     )
+    eval_parsed = json.loads(eval_raw)
 
-    if eval_raw == "pass":
+    if eval_parsed.get("status") == "pass":
         final_response = formatted
     else:
         log("Formatter: Fixing formatting issues...")
         final_response = llm_request(
             client, FORMATTER_MODEL,
             "You are a data formatter for a Kerala tourism assistant.",
-            FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response)
+            FORMATTER_PROMPT.format(user_query=user_query, final_response=evaluated_response) +
+            f"\n\nPrevious output had issues: {eval_parsed.get('issues')}\nFix: {eval_parsed.get('fix')}\n\nPrevious wrong output:\n{formatted}"
         )
-
 
     print(f"\n{GREEN}{BOLD}  ✓ Pipeline complete.{RESET}\n{GRAY}{'─' * 60}{RESET}\n")
 
@@ -401,44 +832,39 @@ def run_pipeline(user_query, status):
 
 if page == "Chat":
 
+    # Hero
     st.markdown("""
-        <style>
-        [data-testid="stChatMessageAvatarUser"],
-        [data-testid="stChatMessageAvatarAssistant"] {
-            display: none;
-        }
-        </style>
+        <div class="hero-banner">
+            <div class="hero-badge">🌴 Live Demo</div>
+            <div class="hero-title">Ask about <span>Kerala</span></div>
+            <div class="hero-subtitle">MoA pipeline · RAG retrieval · Real-time web search</div>
+        </div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([8, 1])
+    col1, col2 = st.columns([9, 1])
     with col2:
-        if st.button("🗑️", use_container_width=True):
+        if st.button("🗑️", use_container_width=True, help="Clear conversation"):
             st.session_state.messages = []
             st.session_state.conversation_history = []
             st.rerun()
 
+    # Chat history
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ask about Kerala tourism..."):
+    if prompt := st.chat_input("Ask anything about Kerala tourism..."):
 
-        # Show user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Run pipeline with live status, then stream response
         with st.chat_message("assistant"):
             status = st.empty()
-
             final_response, client = run_pipeline(prompt, status)
-
-            # Clear status and stream response
             status.empty()
             streamed = st.write_stream(stream_final_response(final_response))
 
-        # Save to history
         st.session_state.messages.append({"role": "assistant", "content": streamed})
         add_to_memory(prompt, streamed)
 
@@ -447,8 +873,14 @@ if page == "Chat":
 
 elif page == "Knowledge Base":
 
-    st.title("Knowledge Base")
-    
+    st.markdown("""
+        <div class="hero-banner">
+            <div class="hero-badge">📚 Data Ingestion</div>
+            <div class="hero-title">Knowledge <span>Base</span></div>
+            <div class="hero-subtitle">Upload documents or load a pre-built vector index</div>
+        </div>
+    """, unsafe_allow_html=True)
+
     if "index_source" not in st.session_state:
         st.session_state.index_source = None
 
@@ -458,6 +890,8 @@ elif page == "Knowledge Base":
         horizontal=True
     )
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
     if mode == "Upload Documents":
 
         uploaded_files = st.file_uploader(
@@ -466,12 +900,11 @@ elif page == "Knowledge Base":
             accept_multiple_files=True
         )
 
-        if uploaded_files and st.button("Build Index", type="primary"):
+        if uploaded_files and st.button("⚙️  Build Index", type="primary"):
 
             progress_bar = st.progress(0)
             status_text = st.empty()
 
-            # ── Model Loading ─────────────────────────────────────────────
             status_text.text("Loading embedding model...")
             progress_bar.progress(5)
             model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -505,7 +938,6 @@ elif page == "Knowledge Base":
                     start += chunk_size - overlap
                 return chunks
 
-            # ── File Processing Loop ──────────────────────────────────────
             for i, file in enumerate(uploaded_files):
                 status_text.text(f"Extracting text [{i+1}/{total_files}]: {file.name}")
                 progress_bar.progress(10 + int((i / total_files) * 30))
@@ -520,14 +952,12 @@ elif page == "Knowledge Base":
 
                 status_text.text(f"Chunked {file.name} → {len(chunks)} chunks (total so far: {len(all_chunks)})")
 
-            # ── Embedding ─────────────────────────────────────────────────
             status_text.text(f"Embedding {len(all_chunks)} chunks... this may take a moment")
             progress_bar.progress(50)
 
             embeddings = model.encode(all_chunks, show_progress_bar=False)
             embeddings = np.array(embeddings).astype("float32")
 
-            # ── Index Building ────────────────────────────────────────────
             status_text.text("Building vector index...")
             progress_bar.progress(85)
 
@@ -550,10 +980,8 @@ elif page == "Knowledge Base":
 
             progress_bar.progress(100)
             status_text.text("Done!")
-            st.success(f"Index built! {total_files} files · {len(all_chunks)} total chunks")
- 
+            st.success(f"✅  Index built — {total_files} file(s) · {len(all_chunks)} total chunks")
             st.session_state.index_source = "build"
-
 
 
     elif mode == "Upload Existing Index":
@@ -565,14 +993,14 @@ elif page == "Knowledge Base":
         with col2:
             chunk_file = st.file_uploader("Upload chunk store (.pkl)", type=["pkl"])
 
-        if index_file and chunk_file and st.button("Load Index", type="primary"):
+        if index_file and chunk_file and st.button("📂  Load Index", type="primary"):
 
             status_text = st.empty()
             progress_bar = st.progress(0)
 
             status_text.text("Loading FAISS index...")
             progress_bar.progress(30)
-            
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".index") as tmp:
                 tmp.write(index_file.read())
                 tmp_path = tmp.name
@@ -597,7 +1025,7 @@ elif page == "Knowledge Base":
 
             progress_bar.progress(100)
             status_text.text("Done!")
-            st.success("Index loaded successfully!")
+            st.success("✅  Index loaded successfully!")
             st.session_state.index_source = "load"
 
 
@@ -606,7 +1034,11 @@ elif page == "Knowledge Base":
         (mode == "Upload Existing Index" and st.session_state.index_source == "load")
     ):
         st.divider()
-        st.subheader("Vector Database Info")
+
+        st.markdown("""
+            <div class="section-title">Vector Database Info</div>
+            <div class="section-subtitle">Index metadata and statistics</div>
+        """, unsafe_allow_html=True)
 
         meta = st.session_state.index_meta
 
@@ -616,14 +1048,19 @@ elif page == "Knowledge Base":
         col3.metric("Index Type", meta.get("index_type", ""))
 
         if meta.get("file_names"):
-            st.markdown("**Indexed Files:**")
-            for name in meta["file_names"]:
-                st.markdown(f"- {name}")
+            st.markdown("<br>**Indexed Files**", unsafe_allow_html=True)
+            pills_html = "".join([f'<span class="file-pill">📄 {name}</span>' for name in meta["file_names"]])
+            st.markdown(pills_html, unsafe_allow_html=True)
 
-        st.divider()
         if st.session_state.index_source == "build":
             st.divider()
-            st.subheader("Export Index")
+
+            st.markdown("""
+                <div class="section-title">Export Index</div>
+                <div class="section-subtitle">Save your built index for reuse</div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
 
             col1, col2 = st.columns(2)
 
@@ -635,7 +1072,7 @@ elif page == "Knowledge Base":
                 faiss.write_index(st.session_state.faiss_index, index_file_path)
                 with open(index_file_path, "rb") as f:
                     st.download_button(
-                        "Download FAISS Index",
+                        "⬇️  Download FAISS Index",
                         data=f.read(),
                         file_name="vector.index",
                         mime="application/octet-stream"
@@ -644,35 +1081,83 @@ elif page == "Knowledge Base":
             with col2:
                 pkl_bytes = pickle.dumps(st.session_state.chunk_store)
                 st.download_button(
-                    "Download Chunk Store",
+                    "⬇️  Download Chunk Store",
                     data=pkl_bytes,
                     file_name="chunk_store.pkl",
                     mime="application/octet-stream"
                 )
 
 
-
 # ── Configuration Page ────────────────────────────────────────────────────────
 
 elif page == "Configuration":
 
-    st.title("Configuration")
+    st.markdown("""
+        <div class="hero-banner">
+            <div class="hero-badge">⚙️ Setup</div>
+            <div class="hero-title">Configur<span>ation</span></div>
+            <div class="hero-subtitle">Set your API keys to power the pipeline</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.subheader("API Keys")
+    st.markdown("""
+        <div class="section-title">API Keys</div>
+        <div class="section-subtitle">Keys are stored in session memory only — never persisted</div>
+    """, unsafe_allow_html=True)
 
-    openrouter_key = st.text_input(
-        "OpenRouter API Key",
-        value=st.session_state.get("openrouter_key", ""),
-        type="password"
-    )
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    tavily_key = st.text_input(
-        "Tavily API Key",
-        value=st.session_state.get("tavily_key", ""),
-        type="password"
-    )
+    col1, col2 = st.columns(2)
 
-    if st.button("Save", type="primary"):
+    with col1:
+        openrouter_key = st.text_input(
+            "OpenRouter API Key",
+            value=st.session_state.get("openrouter_key", ""),
+            type="password",
+            placeholder="sk-or-..."
+        )
+
+    with col2:
+        tavily_key = st.text_input(
+            "Tavily API Key",
+            value=st.session_state.get("tavily_key", ""),
+            type="password",
+            placeholder="tvly-..."
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button("💾  Save Configuration", type="primary"):
         st.session_state.openrouter_key = openrouter_key
         st.session_state.tavily_key = tavily_key
-        st.success("API keys saved!")
+        st.success("✅  API keys saved for this session!")
+
+    st.divider()
+
+    st.markdown("""
+        <div class="section-title">Pipeline Overview</div>
+        <div class="section-subtitle">What happens when you send a query</div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    steps = [
+        ("🔍", "RAG Retrieval", "Fetches relevant chunks from the FAISS vector index using semantic search"),
+        ("🤖", "MoA Layer 1", "Three independent agents generate initial responses in parallel"),
+        ("🔄", "MoA Layer 2", "Three agents refine and merge the Layer 1 outputs"),
+        ("✨", "MoA Layer 3", "Final synthesis into one coherent response"),
+        ("🌐", "Web Search", "Tavily searches for real-time data to fill gaps"),
+        ("✅", "Evaluator", "Verifies and merges web results with the MoA response"),
+        ("📝", "Formatter", "Structures the output for clarity and evaluates quality"),
+    ]
+
+    for icon, title, desc in steps:
+        st.markdown(f"""
+            <div class="info-card" style="display:flex; align-items:flex-start; gap:1rem;">
+                <div style="font-size:1.4rem; margin-top:2px;">{icon}</div>
+                <div>
+                    <div style="color:#e6edf3; font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">{title}</div>
+                    <div style="color:#7d8fa3; font-size:0.85rem;">{desc}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
