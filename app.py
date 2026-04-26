@@ -572,9 +572,11 @@ Tasks:
 
 Only output the JSON. Nothing else."""
 
+
+
 FORMATTER_PROMPT = """You are a response formatter for a Kerala tourism assistant.
 
-Your job is to present the final response in the most useful way for the user, based on what they are actually asking.
+Your job is to present the final response in a clean, human-friendly way based on what the user is asking.
 
 User Query:
 {user_query}
@@ -582,16 +584,24 @@ User Query:
 Final Response:
 {final_response}
 
-Instructions:
+Follow these two rules:
 
-First, understand what the user is asking:
-- If the query is looking for a quick fact (timings, fees, distance, weather, contact), present the answer in compact labeled fields. No prose, no filler sentences.
-- If the query is asking for an explanation (history, culture, what something is, recommendations), write a clear paragraph or two. Add bullet points only if they genuinely help, not by default.
-- If the response contains both narrative content and embedded facts, lead with the explanation and surface the facts compactly at the end.
+RULE 1 — If the user is asking for a list of places (e.g. "list places", "places to visit", "what to see"):
+- Write each place as a heading followed by 2-3 sentences describing it in a natural, conversational tone.
+- Example: "Marine Drive is a scenic walkway along the backwaters of Kochi. It is one of the best spots to catch a sunset and the area also has a lot of street food stalls along the way."
+- If the place has quick facts like timings or entry fee, add them in a single compact line below the description.
+- Example: "Open: All day | Entry: Free | Best time: Evening"
 
-Do not invent fields. Do not fill fields with "N/A" or "Not mentioned". If a fact is not in the response, skip it entirely.
-Do not force narrative answers into fields. Do not force factual answers into paragraphs.
+RULE 2 — If the user is asking for a specific fact (e.g. timings, weather, entry fee, distance, temperature):
+- Skip prose entirely. Just return the facts as clean labeled lines.
+- Example:
+  Opening Time: 9:00 AM – 5:00 PM
+  Entry Fee: ₹30 (adults), ₹10 (children)
+  Best Season: October – February
+
+Do not mix these two rules. Do not add categories like "Dining recommendations" or "Weather advice" as bullet points. Only include information that is present in the final response.
 """
+
 
 FORMAT_EVALUATOR_PROMPT = """You are a format quality checker for a Kerala tourism assistant.
 
@@ -764,38 +774,11 @@ def run_pipeline(user_query, status):
         web_data.extend(results.get("results", []))
 
     log("Evaluator: Verifying and merging web results...")
-    raw = llm_request(
-        client, REASONING_MODEL,
-        "You are a verification expert for a Kerala tourism assistant.",
-        REASONING_PROMPT.format(
-            user_query=user_query,
-            llm_response=moa_response,
-            missing_info=missing_info,
-            web_results=web_data
-        )
+    evaluated_response = llm_request(
+    client, REASONING_MODEL,
+    "You are a verification expert for a Kerala tourism assistant. Merge the original response and web search results into one complete, accurate response. Just return the merged response directly as plain text, nothing else.",
+    f"User Query:\n{user_query}\n\nOriginal Response:\n{moa_response}\n\nWeb Search Results:\n{web_data}"
     )
-    parsed = json.loads(raw)
-
-    if parsed.get("status") == "pass":
-        evaluated_response = parsed["final_response"]
-    else:
-        log("Evaluator: Retrying with additional search...")
-        web_data = []
-        for q in queries:
-            results = tavily_client.search(q, max_results=3)
-            web_data.extend(results.get("results", []))
-        raw = llm_request(
-            client, REASONING_MODEL,
-            "You are a verification expert for a Kerala tourism assistant.",
-            REASONING_PROMPT.format(
-                user_query=user_query,
-                llm_response=moa_response,
-                missing_info=parsed.get("missing_still"),
-                web_results=web_data
-            )
-        )
-        parsed = json.loads(raw)
-        evaluated_response = parsed["final_response"]
 
     log("Formatter: Structuring final response...")
     formatted = llm_request(
