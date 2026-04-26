@@ -459,15 +459,15 @@ if "conversation_history" not in st.session_state:
 
 # ── Pipeline Helpers ──────────────────────────────────────────────────────────
 
-MOA_MODEL_1 = "arcee-ai/trinity-mini:free"
+MOA_MODEL_1 = "inclusionai/ling-2.6-flash:free"
 MOA_MODEL_2 = "nvidia/nemotron-3-nano-30b-a3b:free"
-MOA_MODEL_3 = "arcee-ai/trinity-large-preview:free"
+MOA_MODEL_3 = "nvidia/nemotron-nano-9b-v2:free"
 MOA_LAYER3_MODEL = "liquid/lfm-2.5-1.2b-thinking:free"
-WEB_QUERY_MODEL = "arcee-ai/trinity-mini:free"
+WEB_QUERY_MODEL = "inclusionai/ling-2.6-flash:free"
 REASONING_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free"
 FORMATTER_MODEL = "liquid/lfm-2.5-1.2b-thinking:free"
 FORMAT_EVALUATOR_MODEL = "liquid/lfm-2.5-1.2b-instruct:free"
-STREAMING_MODEL = "arcee-ai/trinity-mini:free"
+STREAMING_MODEL = "inclusionai/ling-2.6-flash:free"
 
 MOA_LAYER1_PROMPT_WITH_MEMORY = """You are a knowledgeable Kerala tourism assistant.
 
