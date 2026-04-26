@@ -10,9 +10,10 @@ import streamlit as st
 from docx import Document
 from openai import OpenAI
 from datetime import datetime
+from dotenv import load_dotenv
 from tavily import TavilyClient
 from sentence_transformers import SentenceTransformer
-
+load_dotenv()
 # ── Page Config ───────────────────────────────────────────────────────────────
 
 st.set_page_config(
@@ -621,12 +622,11 @@ Only output the JSON. Nothing else."""
 
 
 def get_clients():
-    openrouter_key = st.session_state.get("openrouter_key", "")
-    tavily_key = st.session_state.get("tavily_key", "")
+    openrouter_key = st.session_state.get("openrouter_key", "") or os.getenv("OPENROUTER_API_KEY", "")
+    tavily_key = st.session_state.get("tavily_key", "") or os.getenv("TAVILY_API_KEY", "")
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_key)
     tavily_client = TavilyClient(api_key=tavily_key)
     return client, tavily_client
-
 
 def llm_request(client, model, system_prompt, user_prompt):
     response = client.chat.completions.create(
